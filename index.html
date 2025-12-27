@@ -93,6 +93,107 @@
 
   <div id="root"></div>
 
+  <!-- CEP Calculator Injection -->
+  <script>
+    (function () {
+      function initCepCalculator() {
+        const observer = new MutationObserver((mutations) => {
+          const buttons = document.querySelectorAll('button');
+          let btn = null;
+          for (let i = 0; i < buttons.length; i++) {
+            if (buttons[i].textContent.includes('ADICIONAR À SACOLA')) {
+              btn = buttons[i];
+              break;
+            }
+          }
+
+          if (btn && !document.getElementById('cep-calculator-container')) {
+            const targetParent = btn.parentElement;
+            if (targetParent) {
+              const cepDiv = document.createElement('div');
+              cepDiv.id = 'cep-calculator-container';
+              cepDiv.className = 'mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100 animate-in fade-in duration-500';
+              cepDiv.innerHTML = `
+                <div class="flex items-center gap-2 mb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-900"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                  <span class="text-xs font-bold uppercase text-gray-700 tracking-wide">Calcular Frete</span>
+                </div>
+                <div class="flex gap-2">
+                  <input type="text" id="cep-input" placeholder="00000-000" maxlength="9" class="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-900 transition-all">
+                  <button id="cep-calc-btn" class="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-800 transition-colors shadow-sm">OK</button>
+                </div>
+                <div id="cep-result" class="mt-4 hidden animate-in fade-in slide-in-from-top-2 duration-300"></div>
+              `;
+              targetParent.appendChild(cepDiv);
+
+              const input = document.getElementById('cep-input');
+              const calcBtn = document.getElementById('cep-calc-btn');
+              const resultDiv = document.getElementById('cep-result');
+
+              input.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '');
+                if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5, 8);
+                e.target.value = v;
+              });
+
+              calcBtn.addEventListener('click', async () => {
+                const cep = input.value.replace(/\D/g, '');
+                if (cep.length !== 8) {
+                  alert('⚠️ CEP inválido. Digite 8 números.');
+                  return;
+                }
+                calcBtn.disabled = true;
+                calcBtn.innerHTML = '<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+
+                try {
+                  const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                  if (!res.ok) throw new Error();
+                  const data = await res.json();
+                  if (data.erro) throw new Error();
+
+                  resultDiv.classList.remove('hidden');
+                  resultDiv.innerHTML = `
+                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                      Entrega para: <span class="text-gray-900">${data.localidade.toUpperCase()}, ${data.uf}</span>
+                    </p>
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-100 shadow-sm hover:border-gray-200 transition-colors">
+                        <div class="flex flex-col">
+                          <span class="text-xs font-bold text-gray-900">Entrega PAC</span>
+                          <span class="text-[10px] text-gray-500">5 a 7 dias úteis</span>
+                        </div>
+                        <span class="text-xs font-bold text-green-600">GRÁTIS</span>
+                      </div>
+                      <div class="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-100 shadow-sm hover:border-gray-200 transition-colors">
+                        <div class="flex flex-col">
+                          <span class="text-xs font-bold text-gray-900">Entrega Expressa</span>
+                          <span class="text-[10px] text-gray-500">1 a 2 dias úteis</span>
+                        </div>
+                        <span class="text-xs font-bold text-gray-900">R$ 9,99</span>
+                      </div>
+                    </div>
+                  `;
+                } catch (e) {
+                  alert('❌ Erro: CEP não encontrado. Verifique e tente novamente.');
+                } finally {
+                  calcBtn.disabled = false;
+                  calcBtn.textContent = 'OK';
+                }
+              });
+            }
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCepCalculator);
+      } else {
+        initCepCalculator();
+      }
+    })();
+  </script>
 </body>
 
 </html>
